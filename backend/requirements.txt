@@ -1,0 +1,9 @@
+flask
+flask-cors
+tensorflow
+numpy
+opencv-python
+scikit-image
+scikit-learn
+werkzeug
+gunicorn
