@@ -32,8 +32,8 @@ export default function ElongationPredictor() {
 
     const endpoint =
       selectedType === "phase_map"
-        ? "http://127.0.0.1:5000/predict_phase_map"
-        : "http://127.0.0.1:5000/predict_kam";
+        ? "https://tensile-elongation-backend.onrender.com/predict_phase_map"
+        : "https://tensile-elongation-backend.onrender.com/predict_kam";
 
     try {
       const response = await axios.post(endpoint, formData, {
