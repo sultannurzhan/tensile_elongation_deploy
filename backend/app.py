@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from keras._tf_keras.keras.losses import MeanSquaredError
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "https://tensileelongationdeploy.vercel.app"}})
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
