@@ -3,20 +3,23 @@ import numpy as np
 import pickle
 import cv2
 import skimage.feature as skf
-import tensorflow as tf
+import tensorflow.lite as tflite
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from keras._tf_keras.keras.losses import MeanSquaredError
+
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "https://tensileelongationdeploy.vercel.app"}})
+CORS(app, origins=["https://tensileelongationdeploy.vercel.app"])
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-phase_map_model = tf.keras.models.load_model("models/elongation_model_phase_maps_morphed.h5", custom_objects={'mse': MeanSquaredError})
-kam_model = tf.keras.models.load_model("models/elongation_model_KAM_morphed.h5", custom_objects={'mse': MeanSquaredError})
+phase_map_interpreter = tflite.Interpreter(model_path="models/elongation_model_phase_maps_morphed.tflite")
+phase_map_interpreter.allocate_tensors()
+
+kam_interpreter = tflite.Interpreter(model_path="models/elongation_model_KAM_morphed.tflite")
+kam_interpreter.allocate_tensors()
 
 with open("pca_scalers/pca_phase_map_model_final.pkl", "rb") as f:
     pca_phase = pickle.load(f)
@@ -29,7 +32,6 @@ with open("pca_scalers/KAM_scaler.pkl", "rb") as f:
     scaler_kam = pickle.load(f)
 
 def extract_features(image_path, pca, scaler):
-    """Extracts features, applies scaling & PCA transformation"""
     img = cv2.imread(image_path)
     if img is None:
         return None
@@ -47,7 +49,18 @@ def extract_features(image_path, pca, scaler):
     feature_vector = scaler.transform(feature_vector)
     feature_vector_pca = pca.transform(feature_vector)
 
-    return feature_vector_pca
+    return feature_vector_pca.astype("float32")
+
+def predict_with_tflite(interpreter, features):
+    """Runs inference using a TFLite model."""
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    interpreter.set_tensor(input_details[0]['index'], features)
+    interpreter.invoke()
+    prediction = interpreter.get_tensor(output_details[0]['index'])
+
+    return prediction[0][0]
 
 @app.route("/predict_phase_map", methods=["POST"])
 def predict_phase_map():
@@ -66,8 +79,8 @@ def predict_phase_map():
     if features is None:
         return jsonify({"error": "Invalid image"}), 400
 
-    prediction = phase_map_model.predict(features)[0][0]
-    os.remove(filepath)  
+    prediction = predict_with_tflite(phase_map_interpreter, features)
+    os.remove(filepath)
     return jsonify({"prediction": round(float(prediction), 2)})
 
 @app.route("/predict_kam", methods=["POST"])
@@ -87,7 +100,7 @@ def predict_kam():
     if features is None:
         return jsonify({"error": "Invalid image"}), 400
 
-    prediction = kam_model.predict(features)[0][0]
+    prediction = predict_with_tflite(kam_interpreter, features)
     os.remove(filepath)
     return jsonify({"prediction": round(float(prediction), 2)})
 
