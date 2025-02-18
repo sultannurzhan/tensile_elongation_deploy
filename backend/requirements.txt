@@ -7,3 +7,4 @@ scikit-image
 scikit-learn
 werkzeug
 gunicorn
+opencv-python-headless
