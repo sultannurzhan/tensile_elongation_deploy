@@ -1,2 +1,5 @@
 [phases.setup]
-nixPkgs = ["libGL", "glib", "ffmpeg", "freeimage", "imagemagick"]
+nixPkgs = ["python311", "libGL", "glib", "ffmpeg", "freeimage", "imagemagick"]
+
+[build.env]
+PYTHON_VERSION = "3.11"
