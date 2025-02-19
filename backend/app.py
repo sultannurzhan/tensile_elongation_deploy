@@ -114,7 +114,7 @@ def predict_kam():
 
     prediction = predict_with_tflite(kam_interpreter, features)
     os.remove(filepath)
-    return jsonify({"prediction": round(float(prediction), 2)}))
+    return jsonify({"prediction": round(float(prediction), 2)})
 
 # Serve React Frontend
 @app.route("/", defaults={"path": ""})
