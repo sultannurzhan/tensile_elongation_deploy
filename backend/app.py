@@ -25,6 +25,7 @@ os.makedirs(MORPHED_OUTPUT_FOLDER, exist_ok=True)
 # Predefined Percentages
 predefined_percentages = [5, 7.5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]
 
+
 def find_closest_images(percentage, image_type):
     if percentage in predefined_percentages:
         closest_lower = closest_upper = percentage
@@ -37,7 +38,18 @@ def find_closest_images(percentage, image_type):
     img_lower_path = os.path.join(folder, f"{image_type}_{closest_lower}.png")
     img_upper_path = os.path.join(folder, f"{image_type}_{closest_upper}.png")
 
+    # 🔍 Debugging: Print the actual file paths to Railway logs
+    print(f"🔍 Looking for images: {img_lower_path}, {img_upper_path}")
+    print(f"📂 Full Paths: {os.path.abspath(img_lower_path)}, {os.path.abspath(img_upper_path)}")
+
+    # Verify the actual file existence
+    if not os.path.exists(img_lower_path) or not os.path.exists(img_upper_path):
+        print(f"❌ Missing file(s): {img_lower_path} or {img_upper_path}")
+        print(f"🗂 Files in {folder}: {os.listdir(folder)}")  # Print files inside folder
+        return None, None, None, None
+
     return img_lower_path, img_upper_path, closest_lower, closest_upper
+
 
 def generate_morphed_image(percentage, image_type):
     img_lower_path, img_upper_path, lower_perc, upper_perc = find_closest_images(percentage, image_type)
