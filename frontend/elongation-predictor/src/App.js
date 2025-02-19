@@ -39,7 +39,7 @@ export default function ElongationPredictor() {
 
     try {
       const response = await axios.post(
-        "https://tensile-elongation-backend.onrender.com/generate_image",
+        "https://tensileelongationdeploy-production.up.railway.app/generate_image",  // ✅ Update this URL
         { percentage: parseFloat(percentage), type: selectedType },
         { headers: { "Content-Type": "application/json" }, responseType: "blob" }
       );
@@ -52,7 +52,7 @@ export default function ElongationPredictor() {
     }
 
     setLoading(false);
-  };
+};
 
   return (
     <div className="min-h-screen bg-darkPurple text-white flex flex-col items-center justify-center p-6">
