@@ -39,7 +39,7 @@ export default function ElongationPredictor() {
 
     try {
       const response = await axios.post(
-        "https://tensileelongationdeploy-production.up.railway.app/generate_image",  // ✅ Update this URL
+        "https://tensileelongationdeploy-production.up.railway.app/generate_image", 
         { percentage: parseFloat(percentage), type: selectedType },
         { headers: { "Content-Type": "application/json" }, responseType: "blob" }
       );
