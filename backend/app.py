@@ -60,32 +60,30 @@ def generate_morphed_image(percentage, image_type):
 def generate_image():
     try:
         data = request.json
+        print("Received Request:", data)  # Debugging Log
+        
         percentage = data.get("percentage")
         image_type = data.get("type")
-
+        
         if percentage is None or image_type not in ["phase_map", "kam"]:
+            print("❌ Invalid request parameters")  # Debugging Log
             return jsonify({"error": "Invalid request. Provide percentage and type."}), 400
-
-        if percentage < 5:
-            return jsonify({"error": "Enter minimum 5%"}), 400
-        if percentage > 60:
-            return jsonify({"error": "Enter maximum 60%"}), 400
-
-        print(f"Processing request for {percentage}% ({image_type})")  
-
+        
+        print(f"Processing request: {percentage}% {image_type}")  # Debugging Log
         image_path = generate_morphed_image(percentage, image_type)
-
+        
         if image_path is None:
+            print("❌ Image generation failed")  # Debugging Log
             return jsonify({"error": "Could not generate image"}), 500
-
-        print(f"Generated image at {image_path}")  
-
+        
+        print(f"✅ Generated image: {image_path}")  # Debugging Log
         return send_file(image_path, mimetype="image/png", as_attachment=True, download_name=f"elongation_{percentage}.png")
 
     except Exception as e:
         print(f"❌ ERROR: {e}")  
         traceback.print_exc()  
         return jsonify({"error": str(e)}), 500
+    
 
 # 🏠 **Serve React Frontend**
 @app.route("/", defaults={"path": ""})
