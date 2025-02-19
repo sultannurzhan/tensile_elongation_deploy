@@ -4,23 +4,31 @@ import pickle
 import cv2
 import skimage.feature as skf
 import tensorflow.lite as tflite
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
+# Initialize Flask
+app = Flask(__name__, static_folder="build", static_url_path="")
 
-app = Flask(__name__)
-CORS(app, origins=["https://tensileelongationdeploy.vercel.app"])
+# CORS: Allow frontend to communicate with backend
+CORS(app, origins=[
+    "https://tensileelongationdeploy.vercel.app",  # Vercel Frontend
+    "https://tensileelongationdeploy-production.up.railway.app"  # Railway Backend
+])
 
+# Upload folder for processing images
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Load TFLite models
 phase_map_interpreter = tflite.Interpreter(model_path="models/elongation_model_phase_maps_morphed.tflite")
 phase_map_interpreter.allocate_tensors()
 
 kam_interpreter = tflite.Interpreter(model_path="models/elongation_model_KAM_morphed.tflite")
 kam_interpreter.allocate_tensors()
 
+# Load PCA scalers
 with open("pca_scalers/pca_phase_map_model_final.pkl", "rb") as f:
     pca_phase = pickle.load(f)
 with open("pca_scalers/phase_map_scaler.pkl", "rb") as f:
@@ -31,6 +39,7 @@ with open("pca_scalers/pca_KAM_model_final.pkl", "rb") as f:
 with open("pca_scalers/KAM_scaler.pkl", "rb") as f:
     scaler_kam = pickle.load(f)
 
+# Feature Extraction
 def extract_features(image_path, pca, scaler):
     img = cv2.imread(image_path)
     if img is None:
@@ -51,6 +60,7 @@ def extract_features(image_path, pca, scaler):
 
     return feature_vector_pca.astype("float32")
 
+# TensorFlow Lite Prediction
 def predict_with_tflite(interpreter, features):
     """Runs inference using a TFLite model."""
     input_details = interpreter.get_input_details()
@@ -62,6 +72,7 @@ def predict_with_tflite(interpreter, features):
 
     return prediction[0][0]
 
+# API Route: Predict Phase Map
 @app.route("/predict_phase_map", methods=["POST"])
 def predict_phase_map():
     if "file" not in request.files:
@@ -83,6 +94,7 @@ def predict_phase_map():
     os.remove(filepath)
     return jsonify({"prediction": round(float(prediction), 2)})
 
+# API Route: Predict KAM
 @app.route("/predict_kam", methods=["POST"])
 def predict_kam():
     if "file" not in request.files:
@@ -102,7 +114,17 @@ def predict_kam():
 
     prediction = predict_with_tflite(kam_interpreter, features)
     os.remove(filepath)
-    return jsonify({"prediction": round(float(prediction), 2)})
+    return jsonify({"prediction": round(float(prediction), 2)}))
 
+# Serve React Frontend
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_react(path):
+    """Serves React static files from the build folder"""
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, "index.html")
+
+# Start Flask App
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
