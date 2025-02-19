@@ -2,9 +2,8 @@ flask
 flask-cors
 tensorflow
 numpy
-opencv-python
+opencv-python-headless
 scikit-image
 scikit-learn
 werkzeug
 gunicorn
-opencv-python-headless

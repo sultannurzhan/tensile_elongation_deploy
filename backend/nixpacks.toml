@@ -1,11 +1,11 @@
 [phases.setup]
 nixPkgs = ["python311", "opencv", "libGL", "glib", "ffmpeg", "freeimage", "imagemagick"]
 
+[build.env]
+PYTHON_VERSION = "3.11"
+
 [phases.build]
 cmds = ["pip install -r requirements.txt"]
 
 [phases.start]
 cmd = "gunicorn app:app"
-
-[build.env]
-PYTHON_VERSION = "3.11"
