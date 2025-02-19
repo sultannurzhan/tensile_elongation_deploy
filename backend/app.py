@@ -4,11 +4,12 @@ import pickle
 import cv2
 import skimage.feature as skf
 import tensorflow.lite as tflite
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+import traceback
 
-# Initialize Flask
+# Initialize Flask with React frontend serving
 app = Flask(__name__, static_folder="build", static_url_path="")
 
 # CORS: Allow frontend to communicate with backend
@@ -21,25 +22,37 @@ CORS(app, origins=[
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Paths for generated images
+PHASE_MAP_IMG_FOLDER = "phase_map_img"
+KAM_IMG_FOLDER = "KAM_img"
+MORPHED_OUTPUT_FOLDER = "morphed_outputs"
+os.makedirs(MORPHED_OUTPUT_FOLDER, exist_ok=True)
+
 # Load TFLite models
-phase_map_interpreter = tflite.Interpreter(model_path="models/elongation_model_phase_maps_morphed.tflite")
-phase_map_interpreter.allocate_tensors()
+try:
+    phase_map_interpreter = tflite.Interpreter(model_path="models/elongation_model_phase_maps_morphed.tflite")
+    phase_map_interpreter.allocate_tensors()
 
-kam_interpreter = tflite.Interpreter(model_path="models/elongation_model_KAM_morphed.tflite")
-kam_interpreter.allocate_tensors()
+    kam_interpreter = tflite.Interpreter(model_path="models/elongation_model_KAM_morphed.tflite")
+    kam_interpreter.allocate_tensors()
 
-# Load PCA scalers
-with open("pca_scalers/pca_phase_map_model_final.pkl", "rb") as f:
-    pca_phase = pickle.load(f)
-with open("pca_scalers/phase_map_scaler.pkl", "rb") as f:
-    scaler_phase = pickle.load(f)
+    # Load PCA scalers
+    with open("pca_scalers/pca_phase_map_model_final.pkl", "rb") as f:
+        pca_phase = pickle.load(f)
+    with open("pca_scalers/phase_map_scaler.pkl", "rb") as f:
+        scaler_phase = pickle.load(f)
 
-with open("pca_scalers/pca_KAM_model_final.pkl", "rb") as f:
-    pca_kam = pickle.load(f)
-with open("pca_scalers/KAM_scaler.pkl", "rb") as f:
-    scaler_kam = pickle.load(f)
+    with open("pca_scalers/pca_KAM_model_final.pkl", "rb") as f:
+        pca_kam = pickle.load(f)
+    with open("pca_scalers/KAM_scaler.pkl", "rb") as f:
+        scaler_kam = pickle.load(f)
 
-# Feature Extraction
+except Exception as e:
+    print(f"❌ ERROR LOADING MODELS: {e}")
+    traceback.print_exc()
+
+
+# Feature Extraction for Predictions
 def extract_features(image_path, pca, scaler):
     img = cv2.imread(image_path)
     if img is None:
@@ -60,7 +73,7 @@ def extract_features(image_path, pca, scaler):
 
     return feature_vector_pca.astype("float32")
 
-# TensorFlow Lite Prediction
+
 def predict_with_tflite(interpreter, features):
     """Runs inference using a TFLite model."""
     input_details = interpreter.get_input_details()
@@ -72,58 +85,99 @@ def predict_with_tflite(interpreter, features):
 
     return prediction[0][0]
 
-# API Route: Predict Phase Map
+
 @app.route("/predict_phase_map", methods=["POST"])
 def predict_phase_map():
-    if "file" not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file part"}), 400
 
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No selected file"}), 400
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No selected file"}), 400
 
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
 
-    features = extract_features(filepath, pca_phase, scaler_phase)
-    if features is None:
-        return jsonify({"error": "Invalid image"}), 400
+        features = extract_features(filepath, pca_phase, scaler_phase)
+        if features is None:
+            return jsonify({"error": "Invalid image"}), 400
 
-    prediction = predict_with_tflite(phase_map_interpreter, features)
-    os.remove(filepath)
-    return jsonify({"prediction": round(float(prediction), 2)})
+        prediction = predict_with_tflite(phase_map_interpreter, features)
+        os.remove(filepath)
+        return jsonify({"prediction": round(float(prediction), 2)})
 
-# API Route: Predict KAM
+    except Exception as e:
+        print(f"❌ ERROR in /predict_phase_map: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/predict_kam", methods=["POST"])
 def predict_kam():
-    if "file" not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file part"}), 400
 
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No selected file"}), 400
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No selected file"}), 400
 
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
 
-    features = extract_features(filepath, pca_kam, scaler_kam)
-    if features is None:
-        return jsonify({"error": "Invalid image"}), 400
+        features = extract_features(filepath, pca_kam, scaler_kam)
+        if features is None:
+            return jsonify({"error": "Invalid image"}), 400
 
-    prediction = predict_with_tflite(kam_interpreter, features)
-    os.remove(filepath)
-    return jsonify({"prediction": round(float(prediction), 2)})
+        prediction = predict_with_tflite(kam_interpreter, features)
+        os.remove(filepath)
+        return jsonify({"prediction": round(float(prediction), 2)})
+
+    except Exception as e:
+        print(f"❌ ERROR in /predict_kam: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# Generate Morphed Image
+@app.route("/generate_image", methods=["POST"])
+def generate_image():
+    try:
+        data = request.json
+        percentage = data.get("percentage")
+        image_type = data.get("type")
+
+        if percentage is None or image_type not in ["phase_map", "kam"]:
+            return jsonify({"error": "Invalid request. Provide percentage and type."}), 400
+
+        if percentage < 5 or percentage > 60:
+            return jsonify({"error": "Percentage must be between 5% and 60%"}), 400
+
+        image_path = generate_morphed_image(percentage, image_type)
+
+        if image_path is None:
+            return jsonify({"error": "Could not generate image"}), 500
+
+        return send_file(image_path, mimetype="image/png", as_attachment=True, download_name=f"elongation_{percentage}.png")
+
+    except Exception as e:
+        print(f"❌ ERROR in /generate_image: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 # Serve React Frontend
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve_react(path):
-    """Serves React static files from the build folder"""
+    """Serves React frontend from the build folder"""
     if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     return send_from_directory(app.static_folder, "index.html")
+
 
 # Start Flask App
 if __name__ == "__main__":
