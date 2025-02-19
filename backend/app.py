@@ -106,3 +106,16 @@ def serve_frontend(path):
 # Start Flask App
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
+
+@app.route("/check_files")
+def check_files():
+    phase_files = os.listdir(PHASE_MAP_IMG_FOLDER) if os.path.exists(PHASE_MAP_IMG_FOLDER) else []
+    kam_files = os.listdir(KAM_IMG_FOLDER) if os.path.exists(KAM_IMG_FOLDER) else []
+
+    return jsonify({
+        "phase_map_files": phase_files,
+        "kam_files": kam_files,
+        "phase_map_folder_exists": os.path.exists(PHASE_MAP_IMG_FOLDER),
+        "kam_folder_exists": os.path.exists(KAM_IMG_FOLDER),
+    })
