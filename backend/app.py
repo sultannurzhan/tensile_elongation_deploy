@@ -42,11 +42,18 @@ def find_closest_images(percentage, image_type):
 def generate_morphed_image(percentage, image_type):
     img_lower_path, img_upper_path, lower_perc, upper_perc = find_closest_images(percentage, image_type)
 
+    print(f"Looking for images: {img_lower_path}, {img_upper_path}")  # Debug Log
+
     if not os.path.exists(img_lower_path) or not os.path.exists(img_upper_path):
+        print(f"❌ Missing file: {img_lower_path} or {img_upper_path}")  # Debug Log
         return None  
 
     img_lower = cv2.imread(img_lower_path)
     img_upper = cv2.imread(img_upper_path)
+
+    if img_lower is None or img_upper is None:
+        print(f"❌ Error reading images: {img_lower_path}, {img_upper_path}")  # Debug Log
+        return None
 
     alpha = (percentage - lower_perc) / (upper_perc - lower_perc) if upper_perc != lower_perc else 0
     morphed_img = cv2.addWeighted(img_lower, 1 - alpha, img_upper, alpha, 0)
@@ -54,7 +61,9 @@ def generate_morphed_image(percentage, image_type):
     output_path = os.path.join(MORPHED_OUTPUT_FOLDER, f"generated_{percentage}.png")
     cv2.imwrite(output_path, morphed_img)
 
+    print(f"✅ Successfully generated: {output_path}")  # Debug Log
     return output_path
+
 
 @app.route("/generate_image", methods=["POST"])
 def generate_image():
