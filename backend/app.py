@@ -9,11 +9,18 @@ import traceback
 app = Flask(__name__, static_folder="build", static_url_path="")
 
 # CORS: Allow frontend to communicate with backend
-CORS(app, origins=[
-    "https://tensileelongationdeploy.vercel.app",  # Vercel Frontend
-    "https://tensileelongationdeploy-production.up.railway.app",  # Railway Backend
-    "https://maitai.ltd"
-])
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://tensileelongationdeploy.vercel.app",  # Vercel Frontend
+            "https://tensileelongationdeploy-production.up.railway.app",  # Railway Backend
+            "https://maitai.ltd",
+            "https://www.maitai.ltd"
+        ],
+        "supports_credentials": True,
+        "methods": ["GET", "POST", "OPTIONS"]
+    }
+})
 
 # Directories
 PHASE_MAP_IMG_FOLDER = "phase_map_img"
